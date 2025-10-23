@@ -23,17 +23,34 @@ All steps are reproducible — from QIIME2 preprocessing, PICRUSt2 predictions, 
 
 ## 🧪 Pipeline Summary
 
-### 1️⃣ 16S Data Processing (QIIME2)
+# Mendes (2017) – Soil LWM | PICRUSt2 vs Shotgun benchmark
 
-Performed as **single-end** (forward reads only) due to limited overlap in 2×150 V4 reads.  
-No demultiplexing required — samples are already split.
+**Goal.** Reproduce Sun et al. (2020) soil (Mendes) benchmark: compare PICRUSt2 KO predictions from 16S to shotgun KO (soil_LWM). Metrics: per-sample & overall **Spearman**, and **Jaccard** over KO presence/absence.
 
-**Commands:** [`qiime2/commands.sh`](qiime2/commands.sh)
+## Data
+- 16S: ENA PRJEB14409 (demultiplexed).  
+- Shotgun KO: `Inference_picrust/soil_LWM/` from `ssun6/Inference_picrust` (do **not** mix with soil_AAN).
+- ENA alias map: `meta/PRJEB14409_runs_with_alias.tsv` (run_accession → sample_alias).
 
-Steps:
-1. Import with `PairedEndFastqManifestPhred33V2`
-2. Trim forward primer (GTGYCAGCMGCCGCGGTAA)
-3. DADA2 denoise-single
-4. Export representative sequences and feature table
+## 1) QIIME2 (single-end)
+See `qiime2/commands.sh`. Key points:
+- Import with **PairedEndFastqManifestPhred33V2** (already demultiplexed)
+- Forward primer trim (V4) → **dada2 denoise-single**
+- Export `dna-sequences.fasta` and `feature-table.biom`
 
-Outputs:
+## 2) PICRUSt2
+See `picrust2_se/commands.sh`:
+- `picrust2_pipeline.py` → combined KO & marker predictions
+- `metagenome_pipeline.py` → per-sample KO; CPM normalization
+
+## 3) Benchmark vs shotgun (soil_LWM)
+Run:
+```bash
+python analysis/benchmark_mendes_soil.py \
+  --base . \
+  --pred picrust2_se/KO_metagenome_out/pred_metagenome_unstrat_cpm.tsv \
+  --alias-tsv meta/PRJEB14409_runs_with_alias.tsv \
+  --shotgun-lwm-dir Inference_picrust/soil_LWM \
+  --outdir results \
+  --scatter-samples RTP1 BulkTP1 RAG1
+
