@@ -1,50 +1,76 @@
 # picrust2-benchmark
-Benchmarking PICRUSt2 functional inference on Mendes et al. (2017) soil microbiome dataset (PRJEB14409) against shotgun metagenomes (soil_LWM) as described in Sun et al. 2020. Includes full reproducible workflow in QIIME2 + PICRUSt2, sample alias mapping, and Spearman/Jaccard benchmarking pipeline with visual and presentation outputs.
 
-# Mendes16S–PICRUSt2 Benchmark
+Reproducible benchmarking of 16S-based functional inference tools (**PICRUSt2** and **Tax4Fun2**) against shotgun metagenomics on the Mendes et al. (2017) rhizosphere soil dataset (PRJEB14409).
 
-**Benchmarking PICRUSt2 functional inference on Mendes et al. (2017) soil microbiome dataset (PRJEB14409) against shotgun metagenomes (soil_LWM), following the benchmark by Sun et al. (2020).**
+This repository contains all the code and scripts used in my master’s thesis:
 
-This repository reproduces the comparison between 16S-based functional inference (PICRUSt2) and shotgun KO abundances using the Mendes soil dataset.  
-All steps are reproducible — from QIIME2 preprocessing, PICRUSt2 predictions, to KO-level benchmarking and visualization.
+> **“Inference of Microbial Genomic Data: A Benchmark of Existing Tools”**  
+> University of Padova — Farhad Sadat
+
+The pipeline goes from QIIME 2 preprocessing of 16S data, through PICRUSt2 and Tax4Fun2 functional predictions, to KO-level benchmarking against shotgun metagenomes and cross-method comparisons.
 
 ---
 
 ## 🔍 Overview
 
-| Component | Tool / Source | Notes |
-|------------|----------------|-------|
-| 16S rRNA data | ENA: [PRJEB14409](https://www.ebi.ac.uk/ena/browser/view/PRJEB14409) | Mendes et al. 2017 – Soil microbiome |
-| Shotgun KO table | [ssun6/Inference_picrust](https://github.com/ssun6/Inference_picrust) | Use **soil_LWM** only |
-| Benchmark reference | [Sun et al., *Microbiome* (2020)](https://doi.org/10.1186/s40168-020-00815-y) | Evaluated PICRUSt, PICRUSt2, Tax4Fun |
-| Metrics | Spearman ρ, Jaccard similarity | Between 16S-predicted and shotgun KO tables |
+| Component              | Tool / Source                                                                 | Notes                                      |
+|------------------------|-------------------------------------------------------------------------------|-------------------------------------------|
+| 16S rRNA data          | ENA: [PRJEB14409](https://www.ebi.ac.uk/ena/browser/view/PRJEB14409)          | Mendes et al. 2017 – rhizosphere soils    |
+| Shotgun KO table       | [ssun6/Inference_picrust](https://github.com/ssun6/Inference_picrust)        | `soil_LWM` subset only                    |
+| 16S → function (tool 1)| **PICRUSt2**                                                                  | Phylogeny-based KO prediction             |
+| 16S → function (tool 2)| **Tax4Fun2**                                                                  | Taxonomy-based KO prediction              |
+| Benchmark reference    | [Sun et al., *Microbiome* (2020)](https://doi.org/10.1186/s40168-020-00815-y) | Mendes soil benchmark, extended here      |
+| Metrics vs shotgun     | Spearman ρ, Jaccard similarity                                                | Per-sample KO profiles                    |
+| Cross-method metrics   | Spearman ρ, Jaccard, KO-wise agreement                                        | PICRUSt2 vs Tax4Fun2 on same samples      |
 
 ---
 
-## 🧪 Pipeline Summary
+## 🧪 What this repo does
 
-# Mendes (2017) – Soil LWM | PICRUSt2 vs Shotgun benchmark
+1. **Preprocess Mendes 16S data in QIIME 2**  
+   - Import demultiplexed reads  
+   - Trim primer, denoise with DADA2 (single-end)  
+   - Export ASV table and representative sequences
 
-**Goal.** Reproduce Sun et al. (2020) soil (Mendes) benchmark: compare PICRUSt2 KO predictions from 16S to shotgun KO (soil_LWM). Metrics: per-sample & overall **Spearman**, and **Jaccard** over KO presence/absence.
+2. **Run PICRUSt2 on the ASV table**  
+   - Place ASVs onto reference tree  
+   - Predict KO abundances per sample  
+   - Normalize to CPM (counts per million)
 
-## Data
-- 16S: ENA PRJEB14409 (demultiplexed).  
-- Shotgun KO: `Inference_picrust/soil_LWM/` from `ssun6/Inference_picrust` (do **not** mix with soil_AAN).
-- ENA alias map: `meta/PRJEB14409_runs_with_alias.tsv` (run_accession → sample_alias).
+3. **Run Tax4Fun2 on the same 16S data**  
+   - Build or use an existing SILVA-based reference  
+   - Map ASVs to reference taxa  
+   - Predict KO abundances per sample
 
-## 1) QIIME2 (single-end)
-See `qiime2/commands.sh`. Key points:
-- Import with **PairedEndFastqManifestPhred33V2** (already demultiplexed)
-- Forward primer trim (V4) → **dada2 denoise-single**
-- Export `dna-sequences.fasta` and `feature-table.biom`
+4. **Align 16S-based predictions with shotgun KO tables**  
+   - Match samples using ENA alias metadata  
+   - Harmonize KO IDs and sample names  
+   - Keep the Mendes soil LWM subset for benchmarking
 
-## 2) PICRUSt2
-See `picrust2_se/commands.sh`:
-- `picrust2_pipeline.py` → combined KO & marker predictions
-- `metagenome_pipeline.py` → per-sample KO; CPM normalization
+5. **Benchmark and visualize**  
+   - Compute Spearman correlations and Jaccard similarities  
+     - **16S tool (PICRUSt2 or Tax4Fun2) vs shotgun** for each sample  
+   - Summarize distributions per compartment (bulk, rhizosphere, root-associated)  
+   - Compare PICRUSt2 and Tax4Fun2 directly (KO-wise and sample-wise)  
+   - Generate scatter plots, boxplots and summary panels used in the thesis
 
-## 3) Benchmark vs shotgun (soil_LWM)
-Run:
+---
+
+## 📂 Key folders (orientation)
+
+- `qiime2/` – QIIME 2 import, trimming, DADA2, and exports  
+- `picrust2_se/` – PICRUSt2 single-end pipeline and outputs  
+- `tax4fun2_out/` – Tax4Fun2 functional predictions and intermediate tables  
+- `meta/` – Mendes metadata and ENA run ↔ sample alias mapping  
+- `analysis/` – Python/R scripts for KO alignment, metrics and plots  
+- `figures/` – Exported plots and panels used in the thesis
+
+---
+
+## ▶️ Example: Mendes soil benchmark vs shotgun (PICRUSt2)
+
+PICRUSt2 vs shotgun KO benchmarking for the Mendes soil_LWM subset:
+
 ```bash
 python analysis/benchmark_mendes_soil.py \
   --base . \
